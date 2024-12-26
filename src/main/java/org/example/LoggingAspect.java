@@ -1,44 +1,32 @@
-import org.aspectj.lang.ProceedingJoinPoint;
-import org.aspectj.lang.annotation.*;
-import org.springframework.stereotype.Component;
+package org.example;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.After;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.springframework.stereotype.Component;
 
 @Aspect
 @Component
 public class LoggingAspect {
 
-    // Хранилище для времени выполнения методов
-    private final Map<String, Long> methodExecutionTimes = new ConcurrentHashMap<>();
-
-    // Перехват методов, помеченных @Deprecated
+    // Логирование вызова @Deprecated методов
     @Before("@annotation(java.lang.Deprecated)")
-    public void logDeprecatedMethodCall() {
-        System.out.println("Вызван устаревший метод.");
-        Arrays.stream(Thread.currentThread().getStackTrace())
-                .forEach(stackElement -> System.out.println(stackElement));
+    public void logDeprecatedMethod() {
+        System.out.println("Deprecated method executed");
     }
 
-    // Перехват методов из определенного пакета и замер времени выполнения
-    @Around("execution(* com.example..*(..))") // Замените com.example на ваш пакет
-    public Object measureExecutionTime(ProceedingJoinPoint joinPoint) throws Throwable {
-        long startTime = System.nanoTime();
-        try {
-            return joinPoint.proceed();
-        } finally {
-            long executionTime = System.nanoTime() - startTime;
-            String methodName = joinPoint.getSignature().toShortString();
-            methodExecutionTimes.merge(methodName, executionTime, Long::sum);
-        }
-    }
+    // Логирование времени выполнения
+    @Around("execution(* org.example.*.*(..))") // Пакет, в котором находятся методы
+    public Object logExecutionTime(ProceedingJoinPoint joinPoint) throws Throwable {
+        long start = System.currentTimeMillis();
+        Object result = joinPoint.proceed(); // выполняем метод
+        long timeTaken = System.currentTimeMillis() - start;
 
-    // Выводим результаты в конце выполнения программы
-    @After("execution(* com.example..*(..))") // Замените com.example на ваш пакет
-    public void printExecutionTimes() {
-        System.out.println("Время выполнения методов:");
-        methodExecutionTimes.entrySet().stream()
-                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-                .forEach(entry -> System.out.printf("%s: %d ns%n", entry.getKey(), entry.getValue()));
+        // Выводим информацию о времени выполнения
+        System.out.println("Execution time for " + joinPoint.getSignature() + " is " + timeTaken + "ms");
+
+        return result;
     }
 }
